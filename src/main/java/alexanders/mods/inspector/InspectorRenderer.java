@@ -2,6 +2,8 @@ package alexanders.mods.inspector;
 
 import de.ellpeck.rockbottom.api.IGameInstance;
 import de.ellpeck.rockbottom.api.assets.IAssetManager;
+import de.ellpeck.rockbottom.api.construction.resource.ResInfo;
+import de.ellpeck.rockbottom.api.construction.resource.ResourceRegistry;
 import de.ellpeck.rockbottom.api.data.settings.Settings;
 import de.ellpeck.rockbottom.api.entity.Entity;
 import de.ellpeck.rockbottom.api.entity.EntityItem;
@@ -79,7 +81,27 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
         desc.add("Motion x axis: " + String.format("%.3f", entity.motionX));
         desc.add("Motion y axis: " + String.format("%.3f", entity.motionY));
         if (entity instanceof EntityItem) {
-            ((EntityItem) entity).item.getItem().describeItem(manager, ((EntityItem) entity).item, desc, true);
+            ItemInstance itemInstance = ((EntityItem) entity).item;
+            itemInstance.getItem().describeItem(manager, ((EntityItem) entity).item, desc, true);
+            List<String> names = new ArrayList<>(ResourceRegistry.getNames(new ResInfo(((EntityItem) entity).item)));
+
+            int highestPossibleMeta = itemInstance.getItem().getHighestPossibleMeta();
+            if (highestPossibleMeta > 0) {
+                for (int i = 0; i < highestPossibleMeta; i++) { // TODO: Check for negative meta values?
+                    names.addAll(ResourceRegistry.getNames(new ResInfo(itemInstance.getItem(), i)));
+                }
+            }
+
+            if (names.size() > 0) {
+                if (names.size() > 1) {
+                    desc.add("Resource registry names:");
+                    for (String name : names)
+                        desc.add("\t" + name);
+                } else {
+                    desc.add("Resource registry name: " + names.get(0));
+                }
+            }
+
             desc.add("Meta: " + ((EntityItem) entity).item.getItem());
             desc.add("Amount: " + ((EntityItem) entity).item.getAmount() + " / " + ((EntityItem) entity).item.getMaxAmount());
             if (((EntityItem) entity).item.getAdditionalData() != null)
@@ -105,6 +127,24 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
         List<String> desc = new ArrayList<>();
 
         desc.add("Name: " + (itemInstance == null ? manager.localize(tile.getName()) : itemInstance.getDisplayName()));
+        if (itemInstance != null) {
+            List<String> names = new ArrayList<>(ResourceRegistry.getNames(new ResInfo(tile)));
+            int highestPossibleMeta = itemInstance.getItem().getHighestPossibleMeta();
+            if (highestPossibleMeta > 0) {
+                for (int i = 0; i < highestPossibleMeta; i++) { // TODO: Check for negative meta values?
+                    names.addAll(ResourceRegistry.getNames(new ResInfo(itemInstance.getItem(), i)));
+                }
+            }
+            if (names.size() > 0) {
+                if (names.size() > 1) {
+                    desc.add("Resource registry names:");
+                    for (String name : names)
+                        desc.add("\t" + name);
+                } else {
+                    desc.add("Resource registry name: " + names.get(0));
+                }
+            }
+        }
         desc.add("State: " + state.toString());
         desc.add("Position: " + x + " : " + y);
         desc.add("Sky light: " + world.getSkyLight(x, y));
