@@ -13,9 +13,11 @@ import de.ellpeck.rockbottom.api.event.EventResult;
 import de.ellpeck.rockbottom.api.event.IEventListener;
 import de.ellpeck.rockbottom.api.event.impl.OverlayRenderEvent;
 import de.ellpeck.rockbottom.api.event.impl.TooltipEvent;
+import de.ellpeck.rockbottom.api.inventory.IInventory;
 import de.ellpeck.rockbottom.api.item.ItemInstance;
 import de.ellpeck.rockbottom.api.item.ToolType;
 import de.ellpeck.rockbottom.api.tile.Tile;
+import de.ellpeck.rockbottom.api.tile.entity.IInventoryHolder;
 import de.ellpeck.rockbottom.api.tile.entity.TileEntity;
 import de.ellpeck.rockbottom.api.tile.entity.TileEntityFueled;
 import de.ellpeck.rockbottom.api.tile.state.TileState;
@@ -163,6 +165,18 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
                     desc.add("Active: " + ((TileEntityFueled) te).isActive());
                     desc.add("Fuel time: " + ((TileEntityFueled) te).getFuelPercentage());
                 }
+                if (te instanceof IInventoryHolder) {
+                    desc.add("Inventory:");
+                    IInventory inv = ((IInventoryHolder) te).getInventory();
+                    int amount = inv.getSlotAmount();
+                    for (int i = 0; i < amount / 5; i++) {
+                        String row = getRow(inv, i);
+                        if(row.equals("\t")){
+                            continue;
+                        }
+                        desc.add(row);
+                    }
+                }
             }
         }
         desc.add("Biome: " + world.getBiome(x, y).getName());
@@ -199,6 +213,26 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
         if (itemInstance == null || !getEventHandler().fireEvent(new TooltipEvent(itemInstance, game, manager, graphics, desc)).shouldCancel()) {
             getApiHandler().drawHoverInfoAtMouse(game, manager, graphics, true, 500, desc);
         }
+    }
+
+    private String getRow(IInventory inv, int i) {
+        StringBuilder builder = new StringBuilder("\t");
+        i *= 5;
+
+        boolean first = true;
+        for (int j = i; j < i + 5; j++) {
+            if(inv.getSlotAmount() -1 < j)
+                break;
+            ItemInstance instance = inv.get(j);
+            if (instance != null) {
+                if (first) first = false;
+                else
+                    builder.append(":");
+                builder.append(instance);
+            }
+        }
+
+        return builder.toString();
     }
 
     private String getEffective(Tile tile, IWorld world, int x, int y, TileLayer layer) {
