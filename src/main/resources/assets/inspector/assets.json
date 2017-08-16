@@ -1,0 +1,10 @@
+{
+  "loc": {
+    "us_english": "/loc/us_english.json"
+  },
+  "tex": {
+    "items": {
+      "inspector": "/item/inspector.png"
+    }
+  }
+}

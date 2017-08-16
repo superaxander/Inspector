@@ -1,0 +1,15 @@
+{
+  "inspector": {
+    "desc": {
+      "mod": "Inspect tiles and entities"
+    },
+    "item": {
+      "inspector": "Inspector"
+    },
+    "key": {
+      "desc": {
+        "keybind": "Inspect"
+      }
+    }
+  }
+}
