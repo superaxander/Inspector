@@ -1,6 +1,7 @@
 package alexanders.mods.inspector;
 
 import de.ellpeck.rockbottom.api.IGameInstance;
+import de.ellpeck.rockbottom.api.IGraphics;
 import de.ellpeck.rockbottom.api.assets.IAssetManager;
 import de.ellpeck.rockbottom.api.construction.resource.ResInfo;
 import de.ellpeck.rockbottom.api.construction.resource.ResourceRegistry;
@@ -19,12 +20,12 @@ import de.ellpeck.rockbottom.api.item.ToolType;
 import de.ellpeck.rockbottom.api.tile.Tile;
 import de.ellpeck.rockbottom.api.tile.entity.IInventoryHolder;
 import de.ellpeck.rockbottom.api.tile.entity.TileEntity;
-import de.ellpeck.rockbottom.api.tile.entity.TileEntityFueled;
+//import de.ellpeck.rockbottom.api.tile.entity.TileEntityFueled;
 import de.ellpeck.rockbottom.api.tile.state.TileState;
 import de.ellpeck.rockbottom.api.util.BoundBox;
 import de.ellpeck.rockbottom.api.util.Util;
 import de.ellpeck.rockbottom.api.world.IWorld;
-import de.ellpeck.rockbottom.api.world.TileLayer;
+import de.ellpeck.rockbottom.api.world.layer.TileLayer;
 import org.newdawn.slick.Graphics;
 
 import java.util.ArrayList;
@@ -48,10 +49,10 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
             IWorld world = player.world;
             if ((selected = player.getInv().get(player.getSelectedSlot())) != null && selected.getItem() == Inspector.inspectorItem) {
                 if (!Inspector.keybind.isDown()) {
-                    event.assetManager.getTexture(Inspector.inspectorName.addPrefix("items.")).draw(game.getMouseInGuiX(), game.getMouseInGuiY(), 12, 12);
+                    event.assetManager.getTexture(Inspector.inspectorName.addPrefix("items.")).draw(event.graphics.getMouseInGuiX(), event.graphics.getMouseInGuiY(), 12, 12);
                 } else {
-                    double mouseX = game.getInteractionManager().getMousedTileX();
-                    double mouseY = game.getInteractionManager().getMousedTileY();
+                    double mouseX = event.graphics.getMousedTileX();
+                    double mouseY = event.graphics.getMousedTileY();
                     int x = Util.floor(mouseX);
                     int y = Util.floor(mouseY);
                     List<Entity> entities = world.getEntities(new BoundBox(mouseX, mouseY, mouseX, mouseY));
@@ -73,7 +74,7 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
         return result;
     }
 
-    private void describeEntity(Entity entity, IAssetManager manager, Graphics graphics, IGameInstance game) {
+    private void describeEntity(Entity entity, IAssetManager manager, IGraphics graphics, IGameInstance game) {
         List<String> desc = new ArrayList<>();
         desc.add("UUID: " + entity.getUniqueId());
         desc.add("Position: " + String.format("%.3f : %.3f", entity.x, entity.y));
@@ -118,10 +119,10 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
                     desc.add("Command level: " + ((AbstractEntityPlayer) entity).getCommandLevel());
             }
         }
-        getApiHandler().drawHoverInfoAtMouse(game, manager, graphics, true, 500, desc);
+        graphics.drawHoverInfoAtMouse(game, manager, true, 500, desc);
     }
 
-    private void describeTile(TileState state, int x, int y, TileLayer layer, IWorld world, IAssetManager manager, Graphics graphics, IGameInstance game, AbstractEntityPlayer player) {
+    private void describeTile(TileState state, int x, int y, TileLayer layer, IWorld world, IAssetManager manager, IGraphics graphics, IGameInstance game, AbstractEntityPlayer player) {
         Tile tile = state.getTile();
         ItemInstance itemInstance = null;
         if (tile.getItem() != null)
@@ -161,10 +162,10 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
         if (tile.canProvideTileEntity()) {
             TileEntity te = world.getTileEntity(x, y);
             if (te != null) {
-                if (te instanceof TileEntityFueled) {
-                    desc.add("Active: " + ((TileEntityFueled) te).isActive());
-                    desc.add("Fuel time: " + ((TileEntityFueled) te).getFuelPercentage());
-                }
+                //if (te instanceof TileEntityFueled) {
+                //    desc.add("Active: " + ((TileEntityFueled) te).isActive());
+                //    desc.add("Fuel time: " + ((TileEntityFueled) te).getFuelPercentage());
+                //}
                 if (te instanceof IInventoryHolder) {
                     desc.add("Inventory:");
                     IInventory inv = ((IInventoryHolder) te).getInventory();
@@ -211,7 +212,7 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
 
 
         if (itemInstance == null || !getEventHandler().fireEvent(new TooltipEvent(itemInstance, game, manager, graphics, desc)).shouldCancel()) {
-            getApiHandler().drawHoverInfoAtMouse(game, manager, graphics, true, 500, desc);
+            graphics.drawHoverInfoAtMouse(game, manager, true, 500, desc);
         }
     }
 
