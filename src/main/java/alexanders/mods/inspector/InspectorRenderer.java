@@ -250,9 +250,8 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
         }
 
 
-        if (itemInstance == null || !getEventHandler().fireEvent(new TooltipEvent(itemInstance, game, manager, graphics, desc)).shouldCancel()) {
+        if (itemInstance == null || getEventHandler().fireEvent(new TooltipEvent(itemInstance, game, manager, graphics, desc)) != EventResult.CANCELLED) {
             graphics.drawHoverInfo(game, manager, graphics.getMouseInGuiX() + 18.0F / graphics.getGuiScale(), graphics.getMouseInGuiY() + 18.0F / graphics.getGuiScale(), 0.2F, true, false, 500, desc);
-            //graphics.drawHoverInfoAtMouse(game, manager, true, 500, desc);
         }
     }
 
