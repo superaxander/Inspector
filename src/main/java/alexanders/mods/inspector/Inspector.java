@@ -9,9 +9,8 @@ import de.ellpeck.rockbottom.api.event.impl.OverlayRenderEvent;
 import de.ellpeck.rockbottom.api.item.ItemBasic;
 import de.ellpeck.rockbottom.api.mod.IMod;
 import de.ellpeck.rockbottom.api.util.reg.IResourceName;
-import org.newdawn.slick.Input;
+import org.lwjgl.input.Keyboard;
 
-import static de.ellpeck.rockbottom.api.RockBottomAPI.KEYBIND_REGISTRY;
 import static de.ellpeck.rockbottom.api.RockBottomAPI.createRes;
 
 public class Inspector implements IMod {
@@ -24,8 +23,7 @@ public class Inspector implements IMod {
 
     public Inspector() {
         instance = this;
-        IResourceName keybindName = createRes(this, "desc.keybind");
-        KEYBIND_REGISTRY.register(keybindName, keybind = new Keybind(keybindName, Input.KEY_LCONTROL, false));
+        keybind = new Keybind(createRes(this, "desc.keybind"), Keyboard.KEY_LCONTROL, false).register();
     }
 
     @Override
