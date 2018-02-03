@@ -9,9 +9,9 @@ import de.ellpeck.rockbottom.api.event.impl.OverlayRenderEvent;
 import de.ellpeck.rockbottom.api.item.ItemBasic;
 import de.ellpeck.rockbottom.api.mod.IMod;
 import de.ellpeck.rockbottom.api.util.reg.IResourceName;
-import org.lwjgl.input.Keyboard;
 
 import static de.ellpeck.rockbottom.api.RockBottomAPI.createRes;
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_CONTROL;
 
 public class Inspector implements IMod {
 
@@ -23,7 +23,7 @@ public class Inspector implements IMod {
 
     public Inspector() {
         instance = this;
-        keybind = new Keybind(createRes(this, "desc.keybind"), Keyboard.KEY_LCONTROL, false).register();
+        keybind = new Keybind(createRes(this, "desc.keybind"), GLFW_KEY_LEFT_CONTROL, false).register();
     }
 
     @Override

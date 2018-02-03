@@ -1,10 +1,9 @@
 package alexanders.mods.inspector;
 
 import de.ellpeck.rockbottom.api.IGameInstance;
-import de.ellpeck.rockbottom.api.IGraphics;
+import de.ellpeck.rockbottom.api.IRenderer;
 import de.ellpeck.rockbottom.api.assets.IAssetManager;
 import de.ellpeck.rockbottom.api.construction.resource.ResInfo;
-import de.ellpeck.rockbottom.api.construction.resource.ResourceRegistry;
 import de.ellpeck.rockbottom.api.data.settings.Settings;
 import de.ellpeck.rockbottom.api.entity.Entity;
 import de.ellpeck.rockbottom.api.entity.EntityItem;
@@ -15,7 +14,9 @@ import de.ellpeck.rockbottom.api.event.IEventListener;
 import de.ellpeck.rockbottom.api.event.impl.OverlayRenderEvent;
 import de.ellpeck.rockbottom.api.event.impl.TooltipEvent;
 import de.ellpeck.rockbottom.api.inventory.IInventory;
+import de.ellpeck.rockbottom.api.item.Item;
 import de.ellpeck.rockbottom.api.item.ItemInstance;
+import de.ellpeck.rockbottom.api.item.ItemTile;
 import de.ellpeck.rockbottom.api.item.ToolType;
 import de.ellpeck.rockbottom.api.tile.Tile;
 import de.ellpeck.rockbottom.api.tile.TileLiquid;
@@ -34,8 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static de.ellpeck.rockbottom.api.RockBottomAPI.getEventHandler;
-import static de.ellpeck.rockbottom.api.RockBottomAPI.getNet;
+import static de.ellpeck.rockbottom.api.RockBottomAPI.*;
 
 //import de.ellpeck.rockbottom.api.tile.entity.TileEntityFueled;
 
@@ -85,8 +85,8 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
         return result;
     }
 
-    private void describeEntity(Entity entity, IAssetManager manager, IGraphics graphics, IGameInstance game) {
-        List<String> desc = new ArrayList<>();
+    private void describeEntity(Entity entity, IAssetManager manager, IRenderer graphics, IGameInstance game) {
+        ArrayList<String> desc = new ArrayList<>();
         desc.add("UUID: " + entity.getUniqueId());
         desc.add("Position: " + String.format("%.3f : %.3f", entity.x, entity.y));
         desc.add("Facing: " + entity.facing);
@@ -99,58 +99,73 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
         desc.add("Is climbing: " + entity.isClimbing);
         desc.add("Is falling: " + entity.isFalling);
         if (entity instanceof EntityItem) {
+            desc.add("Item: ");
             ItemInstance itemInstance = ((EntityItem) entity).item;
-            itemInstance.getItem().describeItem(manager, ((EntityItem) entity).item, desc, true);
-            List<String> names = new ArrayList<>(ResourceRegistry.getNames(new ResInfo(((EntityItem) entity).item)));
+            Item item = itemInstance.getItem();
+            desc.add("Item name: " + item.getName());
+            describeAndIndent(manager, itemInstance, desc);
+            List<String> names = new ArrayList<>(getResourceRegistry().getNames(new ResInfo(itemInstance)));
 
             int highestPossibleMeta = itemInstance.getItem().getHighestPossibleMeta();
             if (highestPossibleMeta > 0) {
                 for (int i = 0; i < highestPossibleMeta; i++) { // TODO: Check for negative meta values?
-                    names.addAll(ResourceRegistry.getNames(new ResInfo(itemInstance.getItem(), i)));
+                    names.addAll(getResourceRegistry().getNames(new ResInfo(itemInstance.getItem(), i)));
                 }
             }
 
             if (names.size() > 0) {
                 if (names.size() > 1) {
-                    desc.add("Resource registry names:");
+                    desc.add("\tResource registry names:");
                     for (String name : names)
-                        desc.add("\t" + name);
+                        desc.add("\t\t" + name);
                 } else {
-                    desc.add("Resource registry name: " + names.get(0));
+                    desc.add("\tResource registry name: " + names.get(0));
                 }
             }
 
-            desc.add("Meta: " + ((EntityItem) entity).item.getItem());
-            desc.add("Amount: " + ((EntityItem) entity).item.getAmount() + " / " + ((EntityItem) entity).item.getMaxAmount());
-            if (((EntityItem) entity).item.getAdditionalData() != null)
-                desc.add("Item additional data" + ((EntityItem) entity).item.getAdditionalData());
+            desc.add("\tMeta: " + item);
+            desc.add("\tAmount: " + itemInstance.getAmount() + " / " + itemInstance.getMaxAmount());
+            if (itemInstance.getAdditionalData() != null)
+                desc.add("\tItem additional data" + itemInstance.getAdditionalData());
+            if (item instanceof ItemTile) {
+                desc.add("\tItemTile name: " + ((ItemTile) item).getTile().getName());
+            }
+            if (getEventHandler().fireEvent(new TooltipEvent(itemInstance, game, manager, graphics, desc)) == EventResult.CANCELLED)
+                return;
         } else if (entity instanceof EntityLiving) {
-            desc.add("Health: " + ((EntityLiving) entity).getHealth() + " / " + ((EntityLiving) entity).getMaxHealth());
-            desc.add("Regen rate: 1 HP every " + ((EntityLiving) entity).getRegenRate() + " ticks");
-            if (entity instanceof AbstractEntityPlayer) {
-                desc.add("");
-                desc.add("Name: " + ((AbstractEntityPlayer) entity).getName());
+            desc.add("Entity Living: ");
+            EntityLiving living = (EntityLiving) entity;
+            desc.add("\tHealth: " + living.getHealth() + " / " + living.getMaxHealth());
+            desc.add("\tRegen rate: 1 HP every " + living.getRegenRate() + " ticks");
+            if (living instanceof AbstractEntityPlayer) {
+                AbstractEntityPlayer player = (AbstractEntityPlayer) living;
+                desc.add("\tName: " + player.getName());
                 if (getNet().isActive())
-                    desc.add("Command level: " + ((AbstractEntityPlayer) entity).getCommandLevel());
+                    desc.add("\tCommand level: " + player.getCommandLevel());
             }
         }
+        tabsToSpaces(desc);
         graphics.drawHoverInfo(game, manager, graphics.getMouseInGuiX() + 18.0F / graphics.getGuiScale(), graphics.getMouseInGuiY() + 18.0F / graphics.getGuiScale(), 0.2F, true, false, 500, desc);
     }
 
-    private void describeTile(TileState state, int x, int y, TileLayer layer, IWorld world, IAssetManager manager, IGraphics graphics, IGameInstance game, AbstractEntityPlayer player) {
+    private void tabsToSpaces(ArrayList<String> desc) {
+        desc.replaceAll((str) -> str.replaceAll("\t", "----"));
+    }
+
+    private void describeTile(TileState state, int x, int y, TileLayer layer, IWorld world, IAssetManager manager, IRenderer graphics, IGameInstance game, AbstractEntityPlayer player) {
         Tile tile = state.getTile();
         ItemInstance itemInstance = null;
         if (tile.getItem() != null)
             itemInstance = new ItemInstance(tile);
-        List<String> desc = new ArrayList<>();
+        ArrayList<String> desc = new ArrayList<>();
 
         desc.add("Name: " + (itemInstance == null ? manager.localize(tile.getName()) : itemInstance.getDisplayName()));
         if (itemInstance != null) {
-            List<String> names = new ArrayList<>(ResourceRegistry.getNames(new ResInfo(tile)));
+            List<String> names = new ArrayList<>(getResourceRegistry().getNames(new ResInfo(tile)));
             int highestPossibleMeta = itemInstance.getItem().getHighestPossibleMeta();
             if (highestPossibleMeta > 0) {
                 for (int i = 0; i < highestPossibleMeta; i++) { // TODO: Check for negative meta values?
-                    names.addAll(ResourceRegistry.getNames(new ResInfo(itemInstance.getItem(), i)));
+                    names.addAll(getResourceRegistry().getNames(new ResInfo(itemInstance.getItem(), i)));
                 }
             }
             if (names.size() > 0) {
@@ -249,8 +264,8 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
             }
         }
 
-
         if (itemInstance == null || getEventHandler().fireEvent(new TooltipEvent(itemInstance, game, manager, graphics, desc)) != EventResult.CANCELLED) {
+            tabsToSpaces(desc);
             graphics.drawHoverInfo(game, manager, graphics.getMouseInGuiX() + 18.0F / graphics.getGuiScale(), graphics.getMouseInGuiY() + 18.0F / graphics.getGuiScale(), 0.2F, true, false, 500, desc);
         }
     }
@@ -273,6 +288,14 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
         }
 
         return builder.toString();
+    }
+
+    private void describeAndIndent(IAssetManager manager, ItemInstance itemInstance, ArrayList<String> desc) {
+        Item item = itemInstance.getItem();
+        ArrayList<String> indentList = new ArrayList<>();
+        item.describeItem(manager, itemInstance, indentList, true);
+        indentList.replaceAll((str) -> '\t' + str);
+        desc.addAll(indentList);
     }
 
     private String getEffective(Tile tile, IWorld world, int x, int y, TileLayer layer) {
