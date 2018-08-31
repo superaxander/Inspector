@@ -2,11 +2,12 @@ package alexanders.mods.inspector;
 
 import de.ellpeck.rockbottom.api.IGameInstance;
 import de.ellpeck.rockbottom.api.IRenderer;
+import de.ellpeck.rockbottom.api.Registries;
 import de.ellpeck.rockbottom.api.assets.IAssetManager;
 import de.ellpeck.rockbottom.api.construction.resource.ResInfo;
 import de.ellpeck.rockbottom.api.data.settings.Settings;
+import de.ellpeck.rockbottom.api.entity.AbstractEntityItem;
 import de.ellpeck.rockbottom.api.entity.Entity;
-import de.ellpeck.rockbottom.api.entity.EntityItem;
 import de.ellpeck.rockbottom.api.entity.EntityLiving;
 import de.ellpeck.rockbottom.api.entity.player.AbstractEntityPlayer;
 import de.ellpeck.rockbottom.api.event.EventResult;
@@ -17,14 +18,15 @@ import de.ellpeck.rockbottom.api.inventory.IInventory;
 import de.ellpeck.rockbottom.api.item.Item;
 import de.ellpeck.rockbottom.api.item.ItemInstance;
 import de.ellpeck.rockbottom.api.item.ItemTile;
-import de.ellpeck.rockbottom.api.item.ToolType;
+import de.ellpeck.rockbottom.api.item.ToolProperty;
 import de.ellpeck.rockbottom.api.tile.Tile;
 import de.ellpeck.rockbottom.api.tile.TileLiquid;
-import de.ellpeck.rockbottom.api.tile.entity.IInventoryHolder;
+import de.ellpeck.rockbottom.api.tile.entity.IFilteredInventory;
 import de.ellpeck.rockbottom.api.tile.entity.TileEntity;
 import de.ellpeck.rockbottom.api.tile.state.TileProp;
 import de.ellpeck.rockbottom.api.tile.state.TileState;
 import de.ellpeck.rockbottom.api.util.BoundBox;
+import de.ellpeck.rockbottom.api.util.Direction;
 import de.ellpeck.rockbottom.api.util.Util;
 import de.ellpeck.rockbottom.api.world.IWorld;
 import de.ellpeck.rockbottom.api.world.gen.biome.Biome;
@@ -37,8 +39,6 @@ import java.util.stream.Collectors;
 
 import static de.ellpeck.rockbottom.api.RockBottomAPI.*;
 
-//import de.ellpeck.rockbottom.api.tile.entity.TileEntityFueled;
-
 public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
     private HashMap<Tile, List<ItemInstance>> dropLists = new HashMap<>();
 
@@ -49,8 +49,7 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
 
     @Override
     public EventResult listen(EventResult result, OverlayRenderEvent event) {
-        if (layers == null)
-            layers = TileLayer.getAllLayers();
+        if (layers == null) layers = TileLayer.getAllLayers();
         ItemInstance selected;
         IGameInstance game = event.game;
         AbstractEntityPlayer player = event.player;
@@ -60,7 +59,10 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
             IWorld world = player.world;
             if ((selected = player.getInv().get(player.getSelectedSlot())) != null && selected.getItem() == Inspector.inspectorItem) {
                 if (!Inspector.keybind.isDown()) {
-                    event.assetManager.getTexture(Inspector.inspectorName.addPrefix("items.")).draw(event.graphics.getMouseInGuiX(), event.graphics.getMouseInGuiY(), 12, 12);
+                    if(player.facing.x < 0)
+                        event.assetManager.getTexture(Inspector.inspectorName.addPrefix("items.")).draw(event.graphics.getMouseInGuiX(), event.graphics.getMouseInGuiY(), 12, 12);
+                    else
+                        event.assetManager.getTexture(Inspector.inspectorName.addPrefix("items.")).draw(event.graphics.getMouseInGuiX(), event.graphics.getMouseInGuiY(), -12, 12);
                 } else {
                     double mouseX = event.graphics.getMousedTileX();
                     double mouseY = event.graphics.getMousedTileY();
@@ -88,19 +90,18 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
     private void describeEntity(Entity entity, IAssetManager manager, IRenderer graphics, IGameInstance game) {
         ArrayList<String> desc = new ArrayList<>();
         desc.add("UUID: " + entity.getUniqueId());
-        desc.add("Position: " + String.format("%.3f : %.3f", entity.x, entity.y));
+        desc.add("Position: " + String.format("%.3f : %.3f", entity.getX(), entity.getY()));
         desc.add("Facing: " + entity.facing);
-        if (entity.getAdditionalData() != null)
-            desc.add("Additional data: " + entity.getAdditionalData());
+        if (entity.getAdditionalData() != null) desc.add("Additional data: " + entity.getAdditionalData());
         desc.add("Seconds existed: " + entity.ticksExisted / 40);
         desc.add("Motion x axis: " + String.format("%.3f", entity.motionX));
         desc.add("Motion y axis: " + String.format("%.3f", entity.motionY));
         desc.add("Can climb: " + entity.canClimb);
         desc.add("Is climbing: " + entity.isClimbing);
         desc.add("Is falling: " + entity.isFalling);
-        if (entity instanceof EntityItem) {
+        if (entity instanceof AbstractEntityItem) {
             desc.add("Item: ");
-            ItemInstance itemInstance = ((EntityItem) entity).item;
+            ItemInstance itemInstance = ((AbstractEntityItem) entity).getItem();
             Item item = itemInstance.getItem();
             desc.add("Item name: " + item.getName());
             describeAndIndent(manager, itemInstance, desc);
@@ -125,13 +126,11 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
 
             desc.add("\tMeta: " + item);
             desc.add("\tAmount: " + itemInstance.getAmount() + " / " + itemInstance.getMaxAmount());
-            if (itemInstance.getAdditionalData() != null)
-                desc.add("\tItem additional data" + itemInstance.getAdditionalData());
+            if (itemInstance.getAdditionalData() != null) desc.add("\tItem additional data" + itemInstance.getAdditionalData());
             if (item instanceof ItemTile) {
                 desc.add("\tItemTile name: " + ((ItemTile) item).getTile().getName());
             }
-            if (getEventHandler().fireEvent(new TooltipEvent(itemInstance, game, manager, graphics, desc)) == EventResult.CANCELLED)
-                return;
+            if (getEventHandler().fireEvent(new TooltipEvent(itemInstance, game, manager, graphics, desc)) == EventResult.CANCELLED) return;
         } else if (entity instanceof EntityLiving) {
             desc.add("Entity Living: ");
             EntityLiving living = (EntityLiving) entity;
@@ -140,12 +139,12 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
             if (living instanceof AbstractEntityPlayer) {
                 AbstractEntityPlayer player = (AbstractEntityPlayer) living;
                 desc.add("\tName: " + player.getName());
-                if (getNet().isActive())
-                    desc.add("\tCommand level: " + player.getCommandLevel());
+                if (getNet().isActive()) desc.add("\tCommand level: " + player.getCommandLevel());
             }
         }
         tabsToSpaces(desc);
-        graphics.drawHoverInfo(game, manager, graphics.getMouseInGuiX() + 18.0F / graphics.getGuiScale(), graphics.getMouseInGuiY() + 18.0F / graphics.getGuiScale(), 0.2F, true, false, 500, desc);
+        graphics.drawHoverInfo(game, manager, graphics.getMouseInGuiX() + 18.0F / graphics.getGuiScale(), graphics.getMouseInGuiY() + 18.0F / graphics.getGuiScale(), 0.2F, true,
+                               false, 500, desc);
     }
 
     private void tabsToSpaces(ArrayList<String> desc) {
@@ -155,8 +154,7 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
     private void describeTile(TileState state, int x, int y, TileLayer layer, IWorld world, IAssetManager manager, IRenderer graphics, IGameInstance game, AbstractEntityPlayer player) {
         Tile tile = state.getTile();
         ItemInstance itemInstance = null;
-        if (tile.getItem() != null)
-            itemInstance = new ItemInstance(tile);
+        if (tile.getItem() != null) itemInstance = new ItemInstance(tile);
         ArrayList<String> desc = new ArrayList<>();
 
         desc.add("Name: " + (itemInstance == null ? manager.localize(tile.getName()) : itemInstance.getDisplayName()));
@@ -186,7 +184,7 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
         desc.add("Artificial light: " + world.getArtificialLight(x, y));
         desc.add("Combined light: " + world.getCombinedLight(x, y));
         desc.add("Hardness: " + tile.getHardness(world, x, y, layer));
-        desc.add("Breakable: " + tile.canBreak(world, x, y, layer));
+        desc.add("Breakable: " + tile.canBreak(world, x, y, layer, player, true));
         desc.add("Replaceable: " + tile.canReplace(world, x, y, layer));
         desc.add("Can keep plants: " + tile.canKeepPlants(world, x, y, layer));
         desc.add("Grass spreadable: " + tile.canGrassSpreadTo(world, x, y, layer));
@@ -197,25 +195,20 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
         desc.add("Solid surface: " + tile.hasSolidSurface(world, x, y, layer));
         desc.add("Obscures background: " + tile.obscuresBackground(world, x, y, layer));
         desc.add("Liquid: " + tile.isLiquid());
-        if (tile.isLiquid()) {
+        if (tile instanceof TileLiquid) {
             TileLiquid liquid = (TileLiquid) tile;
             desc.add("Liquid levels: " + liquid.getLevels());
             desc.add("Flows: " + liquid.doesFlow());
             desc.add("Liquid flow rate: " + liquid.getFlowSpeed());
         }
-        String effective = getEffective(tile, world, x, y, layer);
-        if (!effective.isEmpty())
-            desc.add("Effective tool type: " + effective);
+        String effective = getEffective(tile, world, x, y, layer, manager);
+        if (!effective.isEmpty()) desc.add("Effective tool type: " + effective);
         if (tile.canProvideTileEntity()) {
             TileEntity te = world.getTileEntity(x, y);
             if (te != null) {
-                //if (te instanceof TileEntityFueled) {
-                //    desc.add("Active: " + ((TileEntityFueled) te).isActive());
-                //    desc.add("Fuel time: " + ((TileEntityFueled) te).getFuelPercentage());
-                //}
-                if (te instanceof IInventoryHolder) {
+                IFilteredInventory inv;
+                if ((inv = te.getTileInventory()) != null) {
                     desc.add("Inventory:");
-                    IInventory inv = ((IInventoryHolder) te).getInventory();
                     int amount = inv.getSlotAmount();
                     for (int i = 0; i < amount / 5; i++) {
                         String row = getRow(inv, i);
@@ -231,12 +224,11 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
         desc.add("Biome:");
         Biome biome = world.getBiome(x, y);
         desc.add("\tName: " + biome.getName());
-        desc.add("\tLowest/heighest height: " + biome.getLowestY() + "/" + biome.getHighestY());
         desc.add("\tGrassland decoration: " + biome.hasGrasslandDecoration());
         desc.add("\tFlower chance: " + biome.getFlowerChance());
         desc.add("\tPebble chance: " + biome.getPebbleChance());
-        if (itemInstance != null)
-            tile.describeItem(manager, itemInstance, desc, true);
+
+        if (itemInstance != null) tile.describeItem(manager, itemInstance, desc, true);
 
         List<ItemInstance> drops = tile.getDrops(world, x, y, layer, player);
         if (dropLists.containsKey(tile)) { //This is for reducing flickering
@@ -266,7 +258,8 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
 
         if (itemInstance == null || getEventHandler().fireEvent(new TooltipEvent(itemInstance, game, manager, graphics, desc)) != EventResult.CANCELLED) {
             tabsToSpaces(desc);
-            graphics.drawHoverInfo(game, manager, graphics.getMouseInGuiX() + 18.0F / graphics.getGuiScale(), graphics.getMouseInGuiY() + 18.0F / graphics.getGuiScale(), 0.2F, true, false, 500, desc);
+            graphics.drawHoverInfo(game, manager, graphics.getMouseInGuiX() + 18.0F / graphics.getGuiScale(), graphics.getMouseInGuiY() + 18.0F / graphics.getGuiScale(), 0.2F,
+                                   true, false, 500, desc);
         }
     }
 
@@ -276,13 +269,11 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
 
         boolean first = true;
         for (int j = i; j < i + 5; j++) {
-            if (inv.getSlotAmount() - 1 < j)
-                break;
+            if (inv.getSlotAmount() - 1 < j) break;
             ItemInstance instance = inv.get(j);
             if (instance != null) {
                 if (first) first = false;
-                else
-                    builder.append(":");
+                else builder.append(":");
                 builder.append(instance);
             }
         }
@@ -298,26 +289,13 @@ public class InspectorRenderer implements IEventListener<OverlayRenderEvent> {
         desc.addAll(indentList);
     }
 
-    private String getEffective(Tile tile, IWorld world, int x, int y, TileLayer layer) {
+    private String getEffective(Tile tile, IWorld world, int x, int y, TileLayer layer, IAssetManager manager) {
         StringBuilder builder = new StringBuilder();
-        if (tile.isToolEffective(world, x, y, layer, ToolType.AXE, Integer.MAX_VALUE)) {
-            builder.append("Axe");
+
+        for (ToolProperty property : Registries.TOOL_PROPERTY_REGISTRY.values()) {
+            if (tile.isToolEffective(world, x, y, layer, property, Integer.MAX_VALUE)) builder.append(manager.localize(property.getName()));
         }
-        if (tile.isToolEffective(world, x, y, layer, ToolType.PICKAXE, Integer.MAX_VALUE)) {
-            if (builder.length() > 0)
-                builder.append(", ");
-            builder.append("Pickaxe");
-        }
-        if (tile.isToolEffective(world, x, y, layer, ToolType.SHOVEL, Integer.MAX_VALUE)) {
-            if (builder.length() > 0)
-                builder.append(", ");
-            builder.append("Shovel");
-        }
-        if (tile.isToolEffective(world, x, y, layer, ToolType.SWORD, Integer.MAX_VALUE)) {
-            if (builder.length() > 0)
-                builder.append(", ");
-            builder.append("Sword");
-        }
+
         return builder.toString();
     }
 }
